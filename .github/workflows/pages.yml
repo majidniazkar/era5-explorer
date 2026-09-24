@@ -28,3 +28,6 @@ jobs:
           path: '.'
       - id: deployment
         uses: actions/deploy-pages@v4
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
