@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ERA5 Explorer — Italy | Icechunk / ARCO-ERA5</title>
+<style>
+:root{
+  --bg:#0f1419; --panel:#171e26; --panel2:#1e2833; --line:#2c3947;
+  --txt:#dfe7ef; --dim:#8fa3b8; --accent:#4db8ff; --accent2:#ffb54d;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);
+  display:flex;align-items:baseline;gap:16px;flex-wrap:wrap}
+header h1{margin:0;font-size:17px;font-weight:600;letter-spacing:.2px}
+header .sub{color:var(--dim);font-size:12.5px}
+header .src{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+#wrap{display:flex;align-items:flex-start;gap:0;min-height:calc(100vh - 56px)}
+#side{width:314px;flex:0 0 314px;border-right:1px solid var(--line);background:var(--panel);
+  padding:14px 16px 40px;height:calc(100vh - 56px);overflow-y:auto}
+#main{flex:1;padding:16px 20px 48px;min-width:0}
+.grp{margin-bottom:18px}
+.grp>label.h{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.9px;
+  color:var(--dim);margin-bottom:7px;font-weight:600}
+select,input[type=text],input[type=number],button{background:var(--panel2);color:var(--txt);
+  border:1px solid var(--line);border-radius:5px;padding:6px 8px;font-size:13px;font-family:inherit}
+select,input[type=text]{width:100%}
+button{cursor:pointer}
+button:hover{border-color:var(--accent)}
+.seg{display:flex;flex-wrap:wrap;gap:5px}
+.seg button{flex:1;min-width:52px;padding:5px 6px;font-size:12px}
+.seg button.on{background:var(--accent);border-color:var(--accent);color:#06121c;font-weight:600}
+.bbox{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:5px 6px;align-items:center;font-size:12px}
+.bbox span{color:var(--dim);font-family:var(--mono)}
+.bbox input{width:100%;padding:4px 5px;font-family:var(--mono);font-size:12px}
+.pill{display:inline-block;padding:2px 7px;border-radius:10px;font-size:11px;
+  background:#1d2b38;border:1px solid var(--line);color:var(--dim);font-family:var(--mono)}
+.note{font-size:11.5px;color:var(--dim);margin-top:6px;line-height:1.45}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.tabs button{border:none;border-bottom:2px solid transparent;background:none;border-radius:0;
+  padding:8px 13px;color:var(--dim);font-size:13.5px}
+.tabs button.on{color:var(--txt);border-bottom-color:var(--accent);font-weight:600}
+.tab{display:none} .tab.on{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin-bottom:14px}
+.card h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim)}
+#mapwrap{position:relative;display:inline-block;max-width:100%}
+#map{display:block;image-rendering:pixelated;border-radius:4px;background:#0a0f14;cursor:crosshair;
+  max-width:100%;height:auto}
+#ovl{position:absolute;left:0;top:0;pointer-events:none}
+#readout{position:absolute;pointer-events:none;background:#000c;border:1px solid var(--line);
+  border-radius:4px;padding:4px 7px;font-family:var(--mono);font-size:11.5px;display:none;white-space:pre}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.stat .k{font-size:10.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--dim)}
+.stat .v{font-family:var(--mono);font-size:16px;margin-top:2px}
+.stat .u{font-size:11px;color:var(--dim)}
+#tslide{width:100%}
+pre{background:#0b1016;border:1px solid var(--line);border-radius:6px;padding:12px;overflow-x:auto;
+  font-family:var(--mono);font-size:12px;line-height:1.5;margin:0}
+.kw{color:#c792ea}.st{color:#c3e88d}.nu{color:#f78c6c}.cm{color:#6b7d90}.fn{color:#82aaff}
+table{border-collapse:collapse;font-size:12.5px;width:100%}
+th,td{text-align:left;padding:5px 9px;border-bottom:1px solid var(--line)}
+th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+td.n{font-family:var(--mono)}
+a{color:var(--accent)}
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;
+  justify-content:center;flex-direction:column;gap:10px;z-index:99;font-family:var(--mono)}
+.warn{background:#3a2418;border:1px solid #7a4a28;color:#ffc9a3;padding:10px 12px;
+  border-radius:6px;font-size:12.5px;margin-bottom:14px}
+</style>
+</head>
+<body>
+<div id="loading"><div style="font-size:15px">Decoding ERA5 payload…</div>
+<div id="lmsg" style="color:var(--dim);font-size:12px"></div></div>
+
+<header>
+  <h1>ERA5 Explorer — Italy</h1>
+  <span class="sub">2 m temperature &amp; total precipitation · multi-resolution in time and space</span>
+  <span class="src">ARCO-ERA5 → VirtualiZarr → Icechunk</span>
+</header>
+
+<div id="wrap">
+<div id="side">
+
+  <div class="grp">
+    <label class="h">Variable</label>
+    <div class="seg" id="segVar">
+      <button data-v="tp" class="on">Precipitation</button>
+      <button data-v="t2m">Temperature</button>
+    </div>
+  </div>
+
+  <div class="grp">
+    <label class="h">Temporal resolution</label>
+    <select id="selRes"></select>
+    <div class="note" id="baseNote"></div>
+  </div>
+
+  <div class="grp">
+    <label class="h">Temporal statistic</label>
+    <div class="seg" id="segAgg"></div>
+  </div>
+
+  <div class="grp">
+    <label class="h">Spatial resolution</label>
+    <div class="seg" id="segSpace">
+      <button data-f="1" class="on">0.25°</button>
+      <button data-f="2">0.5°</button>
+      <button data-f="4">1.0°</button>
+      <button data-f="8">2.0°</button>
+    </div>
+    <div class="seg" style="margin-top:6px" id="segMethod">
+      <button data-m="mean" class="on">Area-weighted</button>
+      <button data-m="sub">Subsample</button>
+    </div>
+    <div class="note" id="spaceNote"></div>
+  </div>
+
+  <div class="grp">
+    <label class="h">Area of interest</label>
+    <select id="selPreset"></select>
+    <div class="bbox" style="margin-top:7px">
+      <span>W</span><input id="bW" type="number" step="0.25">
+      <span>E</span><input id="bE" type="number" step="0.25">
+      <span>S</span><input id="bS" type="number" step="0.25">
+      <span>N</span><input id="bN" type="number" step="0.25">
+    </div>
+    <div class="note">Drag on the map to draw a box.</div>
+    <div style="margin-top:7px"><label style="font-size:12px;color:var(--dim)">
+      <input type="checkbox" id="clipMap"> clip map to AOI</label></div>
+  </div>
+
+  <div class="grp">
+    <label class="h">Colour scale</label>
+    <select id="selCmap">
+      <option value="auto">Robust (2–98 %)</option>
+      <option value="full">Full min–max</option>
+      <option value="fixed">Manual</option>
+    </select>
+    <div class="bbox" style="margin-top:7px">
+      <span>min</span><input id="cMin" type="number" step="any">
+      <span>max</span><input id="cMax" type="number" step="any">
+    </div>
+  </div>
+
+  <div class="grp">
+    <label class="h">Export</label>
+    <div class="seg">
+      <button id="btnCsv">Series CSV</button>
+      <button id="btnPng">Map PNG</button>
+    </div>
+  </div>
+</div>
+
+<div id="main">
+  <div id="warnbox"></div>
+  <div class="tabs">
+    <button class="on" data-t="tMap">Map</button>
+    <button data-t="tSeries">Time series</button>
+    <button data-t="tTable">Table</button>
+    <button data-t="tCode">Code</button>
+    <button data-t="tAbout">About &amp; review</button>
+  </div>
+
+  <div class="tab on" id="tMap">
+    <div class="card">
+      <h3 id="mapTitle">map</h3>
+      <div class="row">
+        <div id="mapwrap">
+          <canvas id="map"></canvas><canvas id="ovl"></canvas><div id="readout"></div>
+        </div>
+        <div style="flex:0 0 96px"><canvas id="cbar" width="88" height="360"></canvas></div>
+      </div>
+      <div style="margin-top:12px">
+        <input id="tslide" type="range" min="0" max="0" value="0">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px">
+          <span class="pill" id="tlabel">—</span>
+          <span>
+            <button id="btnPrev">◀</button>
+            <button id="btnPlay">▶ play</button>
+            <button id="btnNext">▶</button>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="card"><h3>Selection statistics (AOI, current period)</h3>
+      <div class="stats" id="statbox"></div></div>
+  </div>
+
+  <div class="tab" id="tSeries">
+    <div class="card">
+      <h3 id="tsTitle">series</h3>
+      <div class="seg" style="max-width:420px;margin-bottom:10px" id="segSeries"></div>
+      <canvas id="ts" height="330"></canvas>
+      <div class="note" id="tsNote"></div>
+    </div>
+  </div>
+
+  <div class="tab" id="tTable">
+    <div class="card"><h3>Aggregated series — AOI</h3>
+      <div style="max-height:560px;overflow-y:auto"><table id="tbl"></table></div></div>
+  </div>
+
+  <div class="tab" id="tCode">
+    <div class="card"><h3>Equivalent xarray / Icechunk code for the current selection</h3>
+      <pre id="codeout"></pre>
+      <div class="note">Runs against the Icechunk repository built by
+        <span class="pill">era5_icechunk.py</span>. Virtual chunks resolve to the ARCO-ERA5
+        NetCDF files on public GCS, so nothing is copied.</div></div>
+  </div>
+
+  <div class="tab" id="tAbout"><div class="card" id="aboutbox"></div></div>
+</div>
+</div>
+
+<script id="payload" type="application/json"></script>
+<script>
+/* ═══════════════ decode ═══════════════ */
+let RAW = JSON.parse(document.getElementById('payload').textContent || 'null');
+const FILL = -32768;
+
+function b64ToBytes(s){
+  const bin = atob(s), n = bin.length, out = new Uint8Array(n);
+  for(let i=0;i<n;i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+async function gunzip(bytes){
+  if(typeof DecompressionStream === 'undefined')
+    throw new Error('This browser lacks DecompressionStream (needs Chrome 80+, Firefox 113+, Safari 16.4+).');
+  const ds = new DecompressionStream('gzip');
+  const buf = await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+  return new Uint8Array(buf);
+}
+/* byte-shuffled int16: all low bytes first, then all high bytes (improves gzip ratio) */
+function unshuffle(u8){
+  const n = u8.length >> 1, out = new Int16Array(n);
+  for(let i=0;i<n;i++){
+    const v = u8[i] | (u8[n+i] << 8);
+    out[i] = v > 32767 ? v - 65536 : v;
+  }
+  return out;
+}
+/* int16 -> Float32 with scale/offset, FILL -> NaN */
+function unpack(i16, scale, offset){
+  const out = new Float32Array(i16.length);
+  for(let i=0;i<i16.length;i++) out[i] = (i16[i]===FILL) ? NaN : i16[i]*scale + offset;
+  return out;
+}
+
+const D = {lat:null, lon:null, nlat:0, nlon:0, bases:{}, coast:null, presets:null, meta:null};
+
+async function decodeAll(){
+  const msg = document.getElementById('lmsg');
+  if(RAW === null){                       /* hosted mode: payload lives in data/ */
+    msg.textContent = 'manifest';
+    RAW = await (await fetch('data/manifest.json')).json();
+  }
+  D.coast = RAW.coast; D.presets = RAW.presets; D.meta = RAW.meta;
+  D.lat = Float32Array.from(RAW.lat); D.lon = Float32Array.from(RAW.lon);
+  D.nlat = D.lat.length; D.nlon = D.lon.length;
+  for(const [bk, b] of Object.entries(RAW.bases)){
+    D.bases[bk] = {start:b.start, step_h:b.step_h, nt:b.nt, label:b.label, vars:{}};
+    for(const [vk, v] of Object.entries(b.vars)){
+      msg.textContent = `${b.label} · ${vk}`;
+      await new Promise(r=>setTimeout(r,0));
+      let bytes;
+      if(v.file){
+        const r = await fetch('data/' + v.file);
+        if(!r.ok) throw new Error(`cannot fetch data/${v.file} (HTTP ${r.status})`);
+        bytes = new Uint8Array(await r.arrayBuffer());
+      } else {
+        bytes = b64ToBytes(v.data);
+      }
+      /* a host that transparently decompressed the .gz hands back raw bytes */
+      const gz = bytes[0] === 0x1f && bytes[1] === 0x8b;
+      D.bases[bk].vars[vk] = unpack(unshuffle(gz ? await gunzip(bytes) : bytes), v.scale, v.offset);
+    }
+  }
+}
+
+/* ═══════════════ config ═══════════════ */
+const VARDEF = {
+  tp : {name:'Total precipitation', short:'tp',  cmap:'precip', unit:'mm',
+        aggs:['sum','mean','max'], defAgg:'sum', nc:'total_precipitation'},
+  t2m: {name:'2 m temperature',     short:'t2m', cmap:'thermal', unit:'°C',
+        aggs:['mean','min','max'], defAgg:'mean', nc:'2m_temperature'}
+};
+/* which base array serves each temporal resolution */
+const RESDEF = [
+  {k:'1h',   name:'Hourly',        base:'hourly', n:1,  stepLabel:'h'},
+  {k:'3h',   name:'3-hourly',      base:'hourly', n:3,  stepLabel:'h'},
+  {k:'6h',   name:'6-hourly',      base:'hourly', n:6,  stepLabel:'h'},
+  {k:'1d',   name:'Daily',         base:'daily',  n:1,  stepLabel:'d'},
+  {k:'5d',   name:'5-daily',       base:'daily',  n:5,  stepLabel:'d'},
+  {k:'1w',   name:'Weekly',        base:'daily',  n:7,  stepLabel:'d'},
+  {k:'1m',   name:'Monthly',       base:'daily',  n:'month'},
+  {k:'1s',   name:'Seasonal',      base:'daily',  n:'season'},
+  {k:'1y',   name:'Annual',        base:'daily',  n:'all'}
+];
+const S = {v:'tp', res:'1d', agg:'sum', f:1, method:'mean', ti:0,
+           aoi:null, clip:false, cmode:'auto', cmin:null, cmax:null,
+           series:'mean', playing:null};
+
+/* ═══════════════ colormaps ═══════════════ */
+const CMAPS = {
+  precip:[[247,252,253],[224,236,244],[191,211,230],[158,188,218],[140,150,198],
+          [140,107,177],[136,65,157],[129,15,124],[77,0,75]],
+  thermal:[[49,54,149],[69,117,180],[116,173,209],[171,217,233],[224,243,248],
+           [254,224,144],[253,174,97],[244,109,67],[215,48,39],[165,0,38]],
+};
+function cmapRGB(name, t){
+  const c = CMAPS[name]; if(!(t>=0)) return [26,32,40];
+  t = Math.min(1,Math.max(0,t));
+  const x = t*(c.length-1), i = Math.min(c.length-2, Math.floor(x)), u = x-i;
+  return [0,1,2].map(j => Math.round(c[i][j]*(1-u) + c[i+1][j]*u));
+}
+
+/* ═══════════════ time axis ═══════════════ */
+const MS_H = 3600e3;
+function baseTime(bk, i){
+  const b = D.bases[bk];
+  return new Date(Date.parse(b.start) + i*b.step_h*MS_H);
+}
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmt(d, withHour){
+  const s = `${String(d.getUTCDate()).padStart(2,'0')} ${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  return withHour ? `${s} ${String(d.getUTCHours()).padStart(2,'0')}:00 UTC` : s;
+}
+/* group base indices into periods for the active resolution */
+function groups(){
+  const r = RESDEF.find(x=>x.k===S.res), b = D.bases[r.base], out = [];
+  const hourly = b.step_h < 24;
+  if(r.n === 'all'){
+    out.push({idx:[...Array(b.nt).keys()], label:`${baseTime(r.base,0).getUTCFullYear()}`});
+  } else if(r.n === 'month'){
+    let cur = null;
+    for(let i=0;i<b.nt;i++){
+      const d = baseTime(r.base,i), k = `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
+      if(!cur || cur.k!==k){ cur={k, idx:[], label:`${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`}; out.push(cur); }
+      cur.idx.push(i);
+    }
+  } else if(r.n === 'season'){
+    const SN = {0:'DJF',1:'DJF',2:'MAM',3:'MAM',4:'MAM',5:'JJA',6:'JJA',7:'JJA',
+                8:'SON',9:'SON',10:'SON',11:'DJF'};
+    let cur = null;
+    for(let i=0;i<b.nt;i++){
+      const d = baseTime(r.base,i), s = SN[d.getUTCMonth()];
+      const yr = (d.getUTCMonth()===11) ? d.getUTCFullYear()+1 : d.getUTCFullYear();
+      const k = `${s}-${yr}`;
+      if(!cur || cur.k!==k){ cur={k, idx:[], label:`${s} ${yr}`}; out.push(cur); }
+      cur.idx.push(i);
+    }
+  } else {
+    for(let i=0;i<b.nt;i+=r.n){
+      const idx = []; for(let j=i;j<Math.min(b.nt,i+r.n);j++) idx.push(j);
+      const t0 = baseTime(r.base, idx[0]);
+      let label;
+      if(r.n===1) label = fmt(t0, hourly);
+      else if(hourly) label = `${fmt(t0,true)} +${r.n}h`;
+      else label = `${fmt(t0,false)} +${idx.length-1}d`;
+      out.push({idx, label});
+    }
+  }
+  return {r, b, groups:out, hourly};
+}
+
+/* ═══════════════ aggregation ═══════════════ */
+function aggregate(arr, n, idx, agg){          /* time-aggregate a base array -> 2D field */
+  const out = new Float32Array(n).fill(NaN);
+  for(let c=0;c<n;c++){
+    let acc=0, cnt=0, mn=Infinity, mx=-Infinity;
+    for(const t of idx){
+      const val = arr[t*n + c];
+      if(!(val===val)) continue;
+      acc+=val; cnt++; if(val<mn) mn=val; if(val>mx) mx=val;
+    }
+    if(!cnt) continue;
+    out[c] = agg==='sum'?acc : agg==='mean'?acc/cnt : agg==='min'?mn : mx;
+  }
+  return out;
+}
+/* index bounds of the AOI on the native grid (lat descending) */
+function aoiBounds(){
+  const a = S.aoi, dy = D.lat[0]-D.lat[1], dx = D.lon[1]-D.lon[0];
+  let i0 = Math.round((D.lat[0]-a.n)/dy), i1 = Math.round((D.lat[0]-a.s)/dy);
+  let j0 = Math.round((a.w-D.lon[0])/dx), j1 = Math.round((a.e-D.lon[0])/dx);
+  i0=Math.max(0,Math.min(D.nlat-1,i0)); i1=Math.max(i0,Math.min(D.nlat-1,i1));
+  j0=Math.max(0,Math.min(D.nlon-1,j0)); j1=Math.max(j0,Math.min(D.nlon-1,j1));
+  return {i0,i1,j0,j1};
+}
+/* block-coarsen a native 2D field; cos(lat) weights, or plain subsample */
+function coarsen(fld, f, i0, i1, j0, j1){
+  const nlat = Math.ceil((i1-i0+1)/f), nlon = Math.ceil((j1-j0+1)/f);
+  const out = new Float32Array(nlat*nlon).fill(NaN);
+  const lat = new Float32Array(nlat), lon = new Float32Array(nlon);
+  const dy = D.lat[0]-D.lat[1], dx = D.lon[1]-D.lon[0];
+  for(let bi=0;bi<nlat;bi++){
+    for(let bj=0;bj<nlon;bj++){
+      if(S.method==='sub'){
+        const i = i0+bi*f, j = j0+bj*f;
+        out[bi*nlon+bj] = fld[i*D.nlon+j];
+      } else {
+        let sw=0, sv=0;
+        for(let i=i0+bi*f;i<Math.min(i1+1,i0+(bi+1)*f);i++)
+          for(let j=j0+bj*f;j<Math.min(j1+1,j0+(bj+1)*f);j++){
+            const v = fld[i*D.nlon+j];
+            if(!(v===v)) continue;
+            const w = Math.cos(D.lat[i]*Math.PI/180);
+            sw+=w; sv+=v*w;
+          }
+        out[bi*nlon+bj] = sw>0 ? sv/sw : NaN;
+      }
+      /* block centre coordinates */
+      const iA=i0+bi*f, iB=Math.min(i1, i0+(bi+1)*f-1);
+      const jA=j0+bj*f, jB=Math.min(j1, j0+(bj+1)*f-1);
+      lat[bi]=(D.lat[iA]+D.lat[iB])/2; lon[bj]=(D.lon[jA]+D.lon[jB])/2;
+    }
+  }
+  return {v:out, nlat, nlon, lat, lon, dy:dy*f, dx:dx*f,
+          top:D.lat[i0]+dy/2, left:D.lon[j0]-dx/2,
+          bot:D.lat[i1]-dy/2, right:D.lon[j1]+dx/2};
+}
+const R_EARTH = 6371.0088;
+/* exact spherical cell area (km²) */
+function cellArea(latDeg, dy, dx){
+  const r = Math.PI/180;
+  return R_EARTH*R_EARTH*(dx*r)*Math.abs(Math.sin((latDeg+dy/2)*r) - Math.sin((latDeg-dy/2)*r));
+}
+
+/* AOI spatial mean per base timestep (area weighted), + total volume for precip */
+function aoiSeries(){
+  const G = groups(), b = G.b, arr = b.vars[S.v], n = D.nlat*D.nlon;
+  const {i0,i1,j0,j1} = aoiBounds();
+  const dy = D.lat[0]-D.lat[1], dx = D.lon[1]-D.lon[0];
+  let W = 0, A = 0;
+  const cells = [];
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+    const w = Math.cos(D.lat[i]*Math.PI/180);
+    cells.push([i*D.nlon+j, w]); W += w; A += cellArea(D.lat[i], dy, dx);
+  }
+  const base = new Float32Array(b.nt);
+  for(let t=0;t<b.nt;t++){
+    let s=0, w=0;
+    for(const [c,wt] of cells){ const v = arr[t*n+c]; if(v===v){ s+=v*wt; w+=wt; } }
+    base[t] = w>0 ? s/w : NaN;
+  }
+  const out = G.groups.map(g=>{
+    let acc=0,cnt=0,mn=Infinity,mx=-Infinity;
+    for(const t of g.idx){ const v=base[t]; if(!(v===v))continue; acc+=v;cnt++;
+      if(v<mn)mn=v; if(v>mx)mx=v; }
+    if(!cnt) return NaN;
+    return S.agg==='sum'?acc : S.agg==='mean'?acc/cnt : S.agg==='min'?mn : mx;
+  });
+  return {G, values:out, areaKm2:A, ncells:cells.length};
+}
+
+/* ═══════════════ rendering ═══════════════ */
+const map = document.getElementById('map'), mctx = map.getContext('2d');
+const ovl = document.getElementById('ovl'), octx = ovl.getContext('2d');
+let VIEW = null;
+/* display px per native 0.25° cell, sized so the map always fits the panel */
+function pxPerCell(ncols){
+  const avail = Math.max(360, (document.getElementById('main').clientWidth || 900) - 150);
+  return Math.max(3, Math.min(26, Math.floor(avail / ncols)));
+}
+
+function robustRange(v){
+  const s = Array.from(v).filter(x=>x===x).sort((a,b)=>a-b);
+  if(!s.length) return [0,1];
+  const q = p => s[Math.min(s.length-1, Math.floor(p*(s.length-1)))];
+  if(S.cmode==='full') return [s[0], s[s.length-1]];
+  return [q(0.02), q(0.98)];
+}
+function draw(){
+  const G = groups(), g = G.groups[Math.min(S.ti, G.groups.length-1)];
+  const n = D.nlat*D.nlon;
+  const fldFull = aggregate(G.b.vars[S.v], n, g.idx, S.agg);
+  const bb = S.clip ? aoiBounds() : {i0:0,i1:D.nlat-1,j0:0,j1:D.nlon-1};
+  const C = coarsen(fldFull, S.f, bb.i0, bb.i1, bb.j0, bb.j1);
+  let lo, hi;
+  if(S.cmode==='fixed' && S.cmin!==null && S.cmax!==null){ lo=S.cmin; hi=S.cmax; }
+  else { [lo,hi] = robustRange(C.v); }
+  if(S.v==='tp') lo = Math.min(lo, 0);
+  if(hi<=lo) hi = lo + 1e-6;
+
+  /* draw at coarsened cell resolution, upscale with nearest neighbour */
+  const cw = C.nlon, ch = C.nlat;
+  map.width = cw; map.height = ch;
+  const img = mctx.createImageData(cw, ch), cm = VARDEF[S.v].cmap;
+  for(let k=0;k<cw*ch;k++){
+    const v = C.v[k];
+    const [r,gg,bl] = (v===v) ? cmapRGB(cm, (v-lo)/(hi-lo)) : [22,28,35];
+    img.data[4*k]=r; img.data[4*k+1]=gg; img.data[4*k+2]=bl; img.data[4*k+3]=255;
+  }
+  mctx.putImageData(img,0,0);
+  const PX = pxPerCell(bb.j1-bb.j0+1);
+  const dispW = Math.round((bb.j1-bb.j0+1)*PX), dispH = Math.round((bb.i1-bb.i0+1)*PX);
+  map.style.width = dispW+'px'; map.style.height = dispH+'px';
+  ovl.width = dispW; ovl.height = dispH;
+  ovl.style.width = dispW+'px'; ovl.style.height = dispH+'px';
+  VIEW = {C, lo, hi, g, G, dispW, dispH, fldFull, bb};
+
+  drawOverlay(); drawColorbar(lo,hi); updateTitles(); updateStats();
+  if(document.querySelector('.tab.on').id==='tSeries') drawSeries();
+  if(document.querySelector('.tab.on').id==='tTable') drawTable();
+  updateCode();
+}
+function ll2px(lon, lat){
+  const C = VIEW.C;
+  return [ (lon - C.left)/(C.right - C.left) * VIEW.dispW,
+           (C.top - lat)/(C.top - C.bot) * VIEW.dispH ];
+}
+function drawOverlay(){
+  octx.clearRect(0,0,ovl.width,ovl.height);
+  octx.lineWidth = 1; octx.strokeStyle = 'rgba(255,255,255,.62)';
+  octx.beginPath();
+  for(const seg of D.coast){
+    for(let i=0;i<seg.length;i+=2){
+      const [x,y] = ll2px(seg[i], seg[i+1]);
+      if(i===0) octx.moveTo(x,y); else octx.lineTo(x,y);
+    }
+  }
+  octx.stroke();
+  const a = S.aoi;
+  const [x0,y0] = ll2px(a.w, a.n), [x1,y1] = ll2px(a.e, a.s);
+  octx.strokeStyle = '#ffb54d'; octx.lineWidth = 1.8;
+  octx.setLineDash([5,3]);
+  octx.strokeRect(x0,y0,x1-x0,y1-y0);
+  octx.setLineDash([]);
+  /* grid lines of the active spatial resolution */
+  if(S.f>1 && VIEW.C.nlon<160){
+    octx.strokeStyle='rgba(255,255,255,.12)'; octx.lineWidth=1; octx.beginPath();
+    for(let j=0;j<=VIEW.C.nlon;j++){
+      const x = j/VIEW.C.nlon*VIEW.dispW; octx.moveTo(x,0); octx.lineTo(x,VIEW.dispH);
+    }
+    for(let i=0;i<=VIEW.C.nlat;i++){
+      const y = i/VIEW.C.nlat*VIEW.dispH; octx.moveTo(0,y); octx.lineTo(VIEW.dispW,y);
+    }
+    octx.stroke();
+  }
+}
+function drawColorbar(lo,hi){
+  const c = document.getElementById('cbar'), x = c.getContext('2d');
+  x.clearRect(0,0,c.width,c.height);
+  const H = 300, y0 = 22, cm = VARDEF[S.v].cmap;
+  for(let i=0;i<H;i++){
+    const [r,g,b] = cmapRGB(cm, 1-i/(H-1));
+    x.fillStyle=`rgb(${r},${g},${b})`; x.fillRect(6,y0+i,22,1);
+  }
+  x.strokeStyle='#2c3947'; x.strokeRect(6,y0,22,H);
+  x.fillStyle='#8fa3b8'; x.font='11px ui-monospace,monospace';
+  for(let k=0;k<=4;k++){
+    const v = lo + (hi-lo)*(1-k/4), yy = y0 + k/4*H;
+    x.fillText(fmtV(v), 33, yy+4);
+    x.beginPath(); x.moveTo(28,yy); x.lineTo(32,yy); x.stroke();
+  }
+  x.fillStyle='#dfe7ef'; x.font='11px sans-serif';
+  x.fillText(unitLabel(), 4, 12);
+}
+function fmtV(v){
+  const a = Math.abs(v);
+  return a>=100 ? v.toFixed(0) : a>=10 ? v.toFixed(1) : a>=1 ? v.toFixed(2) : v.toFixed(3);
+}
+function unitLabel(){
+  if(S.v==='t2m') return '°C';
+  const G = RESDEF.find(x=>x.k===S.res);
+  if(S.agg==='sum') return 'mm/period';
+  if(S.agg==='max') return 'mm/' + (D.bases[G.base].step_h<24 ? 'h' : 'd');
+  return 'mm/' + (D.bases[G.base].step_h<24 ? 'h' : 'd');
+}
+
+/* ═══════════════ titles / stats ═══════════════ */
+function updateTitles(){
+  const r = RESDEF.find(x=>x.k===S.res);
+  document.getElementById('mapTitle').textContent =
+    `${VARDEF[S.v].name} — ${r.name} ${S.agg} — ${VIEW.g.label} — ${(0.25*S.f).toFixed(2)}°`;
+  document.getElementById('tlabel').textContent =
+    `${VIEW.g.label}   (period ${S.ti+1} of ${VIEW.G.groups.length})`;
+  document.getElementById('baseNote').innerHTML =
+    `base array: <span class="pill">${D.bases[r.base].label}</span>`;
+  document.getElementById('spaceNote').textContent =
+    S.method==='mean'
+      ? `Block cos(lat)-weighted mean of ${S.f}×${S.f} native cells.`
+      : `Nearest-cell subsample — shows aliasing vs. conservative averaging.`;
+}
+function updateStats(){
+  const {i0,i1,j0,j1} = aoiBounds();
+  const C = coarsen(VIEW.fldFull, S.f, i0,i1,j0,j1);
+  const vals = Array.from(C.v).filter(x=>x===x);
+  const dy = D.lat[0]-D.lat[1], dx = D.lon[1]-D.lon[0];
+  let A=0, sw=0, sv=0;
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+    A += cellArea(D.lat[i], dy, dx);
+    const v = VIEW.fldFull[i*D.nlon+j];
+    if(v===v){ const w=Math.cos(D.lat[i]*Math.PI/180); sw+=w; sv+=v*w; }
+  }
+  const mean = sw>0 ? sv/sw : NaN;
+  const st = [
+    ['cells', `${i1-i0+1}×${j1-j0+1}`, `at 0.25° → ${C.nlat}×${C.nlon} at ${(0.25*S.f).toFixed(2)}°`],
+    ['area',  A.toLocaleString(undefined,{maximumFractionDigits:0}), 'km²'],
+    ['mean',  fmtV(mean), unitLabel()],
+    ['min',   vals.length?fmtV(Math.min(...vals)):'—', unitLabel()],
+    ['max',   vals.length?fmtV(Math.max(...vals)):'—', unitLabel()],
+  ];
+  if(S.v==='tp' && S.agg==='sum'){
+    const volM3 = mean/1000 * A * 1e6;
+    st.push(['water volume', (volM3/1e9).toFixed(3), 'km³ over AOI']);
+  }
+  document.getElementById('statbox').innerHTML = st.map(([k,v,u])=>
+    `<div class="stat"><div class="k">${k}</div><div class="v">${v}</div><div class="u">${u}</div></div>`
+  ).join('');
+}
+
+/* ═══════════════ series ═══════════════ */
+let SERIES = null;
+function drawSeries(){
+  const R = aoiSeries(); SERIES = R;
+  const c = document.getElementById('ts');
+  const W = Math.max(640, document.getElementById('main').clientWidth - 70);
+  c.width = W; const H = c.height;
+  const x = c.getContext('2d');
+  x.clearRect(0,0,W,H);
+  const L=62, Rr=18, T=14, B=52, pw=W-L-Rr, ph=H-T-B;
+  const vals = R.values, cum = [];
+  let acc=0; for(const v of vals){ acc += (v===v?v:0); cum.push(acc); }
+  const showCum = S.series==='cum' && S.v==='tp';
+  const ser = showCum ? cum : vals;
+  const fin = ser.filter(v=>v===v);
+  let lo = Math.min(...fin), hi = Math.max(...fin);
+  if(S.v==='tp') lo = Math.min(0, lo);
+  if(hi===lo) hi = lo+1;
+  const pad = (hi-lo)*0.08; hi+=pad; if(S.v!=='tp') lo-=pad;
+  const X = i => L + (ser.length===1?pw/2:i/(ser.length-1)*pw);
+  const Y = v => T + ph - (v-lo)/(hi-lo)*ph;
+
+  x.strokeStyle='#2c3947'; x.fillStyle='#8fa3b8'; x.font='11px ui-monospace,monospace';
+  for(let k=0;k<=5;k++){
+    const v = lo+(hi-lo)*k/5, yy = Y(v);
+    x.beginPath(); x.moveTo(L,yy); x.lineTo(L+pw,yy); x.stroke();
+    x.fillText(fmtV(v), 6, yy+4);
+  }
+  const nTick = Math.min(8, ser.length);
+  for(let k=0;k<nTick;k++){
+    const i = Math.round(k/(Math.max(1,nTick-1))*(ser.length-1));
+    x.save(); x.translate(X(i), T+ph+8); x.rotate(-Math.PI/7);
+    x.fillText(R.G.groups[i].label.replace(' UTC','').slice(0,17), -58, 0); x.restore();
+  }
+  const bar = (S.v==='tp' && !showCum);
+  if(bar){
+    const bw = Math.max(1, pw/ser.length*0.8);
+    for(let i=0;i<ser.length;i++){
+      if(!(ser[i]===ser[i])) continue;
+      const [r,g,b] = cmapRGB('precip', 0.55);
+      x.fillStyle = (i===S.ti)?'#ffb54d':`rgb(${r},${g},${b})`;
+      x.fillRect(X(i)-bw/2, Y(ser[i]), bw, T+ph-Y(ser[i]));
+    }
+  } else {
+    x.strokeStyle = showCum?'#4db8ff':'#ff8b6b'; x.lineWidth=1.8; x.beginPath();
+    let started=false;
+    for(let i=0;i<ser.length;i++){
+      if(!(ser[i]===ser[i])){started=false;continue;}
+      const px=X(i), py=Y(ser[i]);
+      started ? x.lineTo(px,py) : x.moveTo(px,py); started=true;
+    }
+    x.stroke();
+    x.fillStyle='#ffb54d';
+    if(ser[S.ti]===ser[S.ti]){ x.beginPath(); x.arc(X(S.ti),Y(ser[S.ti]),3.5,0,7); x.fill(); }
+  }
+  x.strokeStyle='#4a5b6d'; x.beginPath(); x.moveTo(L,T); x.lineTo(L,T+ph);
+  x.lineTo(L+pw,T+ph); x.stroke();
+
+  const r = RESDEF.find(v=>v.k===S.res);
+  document.getElementById('tsTitle').textContent =
+    `${VARDEF[S.v].name} — AOI ${S.method==='sub'?'subsampled':'area-weighted'} mean — ${r.name} ${S.agg}`
+    + (showCum?' — cumulative':'');
+  document.getElementById('tsNote').innerHTML =
+    `AOI ${S.aoi.w}–${S.aoi.e}°E, ${S.aoi.s}–${S.aoi.n}°N · ${R.ncells} native cells · `
+    + `${R.areaKm2.toLocaleString(undefined,{maximumFractionDigits:0})} km² · `
+    + `${ser.length} periods · spatial mean is computed on the 0.25° grid, then aggregated in time.`;
+}
+/* ═══════════════ table ═══════════════ */
+function drawTable(){
+  const R = SERIES && SERIES.G.r.k===S.res ? SERIES : aoiSeries();
+  SERIES = R;
+  let cum=0;
+  const rows = R.values.map((v,i)=>{
+    cum += (v===v?v:0);
+    return `<tr><td class="n">${i+1}</td><td>${R.G.groups[i].label}</td>`
+      + `<td class="n">${v===v?fmtV(v):'—'}</td>`
+      + (S.v==='tp'?`<td class="n">${fmtV(cum)}</td>`:'')+`</tr>`;
+  }).join('');
+  document.getElementById('tbl').innerHTML =
+    `<thead><tr><th>#</th><th>period</th><th>${S.agg} (${unitLabel()})</th>`
+    + (S.v==='tp'?'<th>cumulative (mm)</th>':'') + `</tr></thead><tbody>${rows}</tbody>`;
+}
+/* ═══════════════ code tab ═══════════════ */
+function updateCode(){
+  const r = RESDEF.find(x=>x.k===S.res), b = D.bases[r.base], a = S.aoi;
+  const freq = {'1h':'1h','3h':'3h','6h':'6h','1d':'1D','5d':'5D','1w':'7D','1m':'MS','1s':'QS-DEC','1y':'YS'}[S.res];
+  const rs = {sum:'sum',mean:'mean',min:'min',max:'max'}[S.agg];
+  const vn = VARDEF[S.v].short;
+  const conv = S.v==='t2m' ? `ds["t2m"] - 273.15` : `ds["tp"] * 1000.0`;
+  const cu   = S.v==='t2m' ? `"°C"` : `"mm"`;
+  const t0 = baseTime(r.base,0).toISOString().slice(0,19);
+  const t1 = baseTime(r.base, b.nt-1).toISOString().slice(0,19);
+  const src = `<span class="cm"># --- open the Icechunk store (virtual chunks -> ARCO-ERA5 on GCS) ---</span>
+<span class="kw">import</span> icechunk, xarray <span class="kw">as</span> xr
+<span class="kw">from</span> era5_icechunk <span class="kw">import</span> open_era5
+
+ds = <span class="fn">open_era5</span>(<span class="st">"era5-sl-icechunk-v1"</span>)          <span class="cm"># hourly, 0.25°, global</span>
+
+<span class="cm"># --- 1. area of interest (latitude is stored north -> south) ---</span>
+aoi = ds.<span class="fn">sel</span>(
+    longitude=<span class="fn">slice</span>(<span class="nu">${a.w}</span>, <span class="nu">${a.e}</span>),
+    latitude=<span class="fn">slice</span>(<span class="nu">${a.n}</span>, <span class="nu">${a.s}</span>),
+    time=<span class="fn">slice</span>(<span class="st">"${t0}"</span>, <span class="st">"${t1}"</span>),
+)
+
+<span class="cm"># --- 2. unit conversion ---</span>
+da = ${conv}
+da.attrs[<span class="st">"units"</span>] = ${cu}
+
+<span class="cm"># --- 3. temporal resolution: ${r.name.toLowerCase()} ${S.agg} ---</span>
+da_t = da.<span class="fn">resample</span>(time=<span class="st">"${freq}"</span>).<span class="fn">${rs}</span>()
+
+<span class="cm"># --- 4. spatial resolution: ${(0.25*S.f).toFixed(2)}° (${S.method==='mean'?'area-weighted block mean':'nearest subsample'}) ---</span>
+${S.f===1
+ ? `da_ts = da_t                                       <span class="cm"># native 0.25°</span>`
+ : (S.method==='mean'
+   ? `w = np.<span class="fn">cos</span>(np.<span class="fn">deg2rad</span>(da_t.latitude))
+da_ts = (da_t * w).<span class="fn">coarsen</span>(latitude=<span class="nu">${S.f}</span>, longitude=<span class="nu">${S.f}</span>, boundary=<span class="st">"trim"</span>).<span class="fn">sum</span>() \\
+        / w.<span class="fn">coarsen</span>(latitude=<span class="nu">${S.f}</span>, boundary=<span class="st">"trim"</span>).<span class="fn">sum</span>()`
+   : `da_ts = da_t.<span class="fn">isel</span>(latitude=<span class="fn">slice</span>(<span class="nu">0</span>, <span class="kw">None</span>, <span class="nu">${S.f}</span>),
+                 longitude=<span class="fn">slice</span>(<span class="nu">0</span>, <span class="kw">None</span>, <span class="nu">${S.f}</span>))`)}
+
+<span class="cm"># --- 5. map of the selected period + AOI mean series ---</span>
+field  = da_ts.<span class="fn">sel</span>(time=<span class="st">"${(VIEW?VIEW.g.label:'')}"</span>, method=<span class="st">"nearest"</span>)
+wlat   = np.<span class="fn">cos</span>(np.<span class="fn">deg2rad</span>(da.latitude))
+series = da.<span class="fn">weighted</span>(wlat).<span class="fn">mean</span>((<span class="st">"latitude"</span>,<span class="st">"longitude"</span>)) \\
+           .<span class="fn">resample</span>(time=<span class="st">"${freq}"</span>).<span class="fn">${rs}</span>()
+
+field.<span class="fn">plot</span>(cmap=<span class="st">"${S.v==='tp'?'BuPu':'RdYlBu_r'}"</span>); series.<span class="fn">plot</span>()`;
+  document.getElementById('codeout').innerHTML = src;
+}
+
+/* ═══════════════ UI wiring ═══════════════ */
+function segInit(id, key, onchange, attr){
+  const el = document.getElementById(id);
+  el.addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    [...el.querySelectorAll('button')].forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    onchange(b.dataset[attr]);
+  });
+}
+function buildAggSeg(){
+  const el = document.getElementById('segAgg');
+  el.innerHTML = VARDEF[S.v].aggs.map(a=>
+    `<button data-a="${a}" class="${a===S.agg?'on':''}">${a}</button>`).join('');
+}
+function buildSeriesSeg(){
+  const el = document.getElementById('segSeries');
+  const opts = S.v==='tp' ? [['mean','per period'],['cum','cumulative']] : [['mean','per period']];
+  el.innerHTML = opts.map(([k,l])=>
+    `<button data-s="${k}" class="${k===S.series?'on':''}">${l}</button>`).join('');
+}
+function clampRes(){
+  const r = RESDEF.find(x=>x.k===S.res);
+  const G = groups();
+  S.ti = Math.min(S.ti, G.groups.length-1);
+  const sl = document.getElementById('tslide');
+  sl.max = G.groups.length-1; sl.value = S.ti;
+}
+function setAoiInputs(){
+  document.getElementById('bW').value = S.aoi.w; document.getElementById('bE').value = S.aoi.e;
+  document.getElementById('bS').value = S.aoi.s; document.getElementById('bN').value = S.aoi.n;
+}
+function init(){
+  document.getElementById('selRes').innerHTML = RESDEF.map(r=>
+    `<option value="${r.k}" ${r.k===S.res?'selected':''}>${r.name}</option>`).join('');
+  document.getElementById('selPreset').innerHTML =
+    '<option value="">— preset —</option>' +
+    D.presets.map((p,i)=>`<option value="${i}">${p.name}</option>`).join('');
+  S.aoi = {...D.presets[0].bbox}; setAoiInputs();
+  buildAggSeg(); buildSeriesSeg(); clampRes();
+
+  segInit('segVar','v', v=>{ S.v=v; S.agg=VARDEF[v].defAgg; S.series='mean';
+    buildAggSeg(); buildSeriesSeg(); draw(); }, 'v');
+  segInit('segAgg','agg', a=>{ S.agg=a; draw(); }, 'a');
+  segInit('segSpace','f', f=>{ S.f=+f; draw(); }, 'f');
+  segInit('segMethod','method', m=>{ S.method=m; draw(); }, 'm');
+  segInit('segSeries','series', s=>{ S.series=s; drawSeries(); }, 's');
+
+  document.getElementById('selRes').onchange = e=>{
+    S.res = e.target.value;
+    const r = RESDEF.find(x=>x.k===S.res);
+    if(!VARDEF[S.v].aggs.includes(S.agg)){ S.agg = VARDEF[S.v].defAgg; buildAggSeg(); }
+    clampRes(); draw();
+  };
+  document.getElementById('selPreset').onchange = e=>{
+    if(e.target.value==='') return;
+    S.aoi = {...D.presets[+e.target.value].bbox};
+    if(D.presets[+e.target.value].res){ S.res = D.presets[+e.target.value].res;
+      document.getElementById('selRes').value = S.res; clampRes(); }
+    setAoiInputs(); draw();
+  };
+  for(const [id,k] of [['bW','w'],['bE','e'],['bS','s'],['bN','n']])
+    document.getElementById(id).onchange = e=>{
+      const v = parseFloat(e.target.value);
+      if(!isNaN(v)) S.aoi[k]=v;
+      S.aoi.w = Math.max(D.lon[0], Math.min(S.aoi.w, D.lon[D.nlon-1]));
+      S.aoi.e = Math.max(S.aoi.w, Math.min(S.aoi.e, D.lon[D.nlon-1]));
+      S.aoi.s = Math.max(D.lat[D.nlat-1], Math.min(S.aoi.s, D.lat[0]));
+      S.aoi.n = Math.max(S.aoi.s, Math.min(S.aoi.n, D.lat[0]));
+      setAoiInputs(); draw();
+    };
+  document.getElementById('clipMap').onchange = e=>{ S.clip=e.target.checked; draw(); };
+  document.getElementById('selCmap').onchange = e=>{ S.cmode=e.target.value; draw(); };
+  for(const id of ['cMin','cMax']) document.getElementById(id).onchange = ()=>{
+    S.cmin = parseFloat(document.getElementById('cMin').value);
+    S.cmax = parseFloat(document.getElementById('cMax').value);
+    if(!isNaN(S.cmin)&&!isNaN(S.cmax)){ S.cmode='fixed';
+      document.getElementById('selCmap').value='fixed'; }
+    draw();
+  };
+  document.getElementById('tslide').oninput = e=>{ S.ti=+e.target.value; draw(); };
+  document.getElementById('btnPrev').onclick = ()=>{ S.ti=Math.max(0,S.ti-1);
+    document.getElementById('tslide').value=S.ti; draw(); };
+  document.getElementById('btnNext').onclick = ()=>{
+    S.ti=Math.min(groups().groups.length-1,S.ti+1);
+    document.getElementById('tslide').value=S.ti; draw(); };
+  document.getElementById('btnPlay').onclick = e=>{
+    if(S.playing){ clearInterval(S.playing); S.playing=null; e.target.textContent='▶ play'; return; }
+    e.target.textContent='❚❚ stop';
+    S.playing = setInterval(()=>{
+      const n = groups().groups.length;
+      S.ti = (S.ti+1)%n; document.getElementById('tslide').value=S.ti; draw();
+    }, 240);
+  };
+  document.querySelector('.tabs').addEventListener('click', e=>{
+    const b = e.target.closest('button'); if(!b) return;
+    document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); document.getElementById(b.dataset.t).classList.add('on');
+    if(b.dataset.t==='tSeries') drawSeries();
+    if(b.dataset.t==='tTable') drawTable();
+  });
+
+  /* map interaction: hover readout + drag AOI */
+  const ro = document.getElementById('readout');
+  let drag = null;
+  function pxToLL(ev){
+    const rc = map.getBoundingClientRect();
+    const fx = (ev.clientX-rc.left)/rc.width, fy = (ev.clientY-rc.top)/rc.height;
+    const C = VIEW.C;
+    return [C.left + fx*(C.right-C.left), C.top - fy*(C.top-C.bot)];
+  }
+  map.addEventListener('mousemove', ev=>{
+    if(!VIEW) return;
+    const [lon,lat] = pxToLL(ev), C = VIEW.C;
+    const j = Math.floor((lon-C.left)/C.dx), i = Math.floor((C.top-lat)/C.dy);
+    if(i<0||j<0||i>=C.nlat||j>=C.nlon){ ro.style.display='none'; return; }
+    const v = C.v[i*C.nlon+j];
+    ro.style.display='block';
+    ro.style.left = (ev.offsetX+14)+'px'; ro.style.top = (ev.offsetY+10)+'px';
+    ro.textContent = `${lat.toFixed(2)}°N  ${lon.toFixed(2)}°E\n${v===v?fmtV(v):'—'} ${unitLabel()}`;
+    if(drag){ drag.cur=[lon,lat]; liveBox(); }
+  });
+  map.addEventListener('mouseleave', ()=>ro.style.display='none');
+  map.addEventListener('mousedown', ev=>{ const p=pxToLL(ev); drag={a:p,cur:p}; });
+  function liveBox(){
+    drawOverlay();
+    const [x0,y0]=ll2px(Math.min(drag.a[0],drag.cur[0]), Math.max(drag.a[1],drag.cur[1]));
+    const [x1,y1]=ll2px(Math.max(drag.a[0],drag.cur[0]), Math.min(drag.a[1],drag.cur[1]));
+    octx.strokeStyle='#4db8ff'; octx.lineWidth=1.6; octx.strokeRect(x0,y0,x1-x0,y1-y0);
+  }
+  window.addEventListener('mouseup', ()=>{
+    if(!drag) return;
+    const [a,b] = [drag.a, drag.cur]; drag=null;
+    const q = x => Math.round(x*4)/4;
+    if(Math.abs(a[0]-b[0])<0.3 || Math.abs(a[1]-b[1])<0.3){ drawOverlay(); return; }
+    S.aoi = {w:q(Math.min(a[0],b[0])), e:q(Math.max(a[0],b[0])),
+             s:q(Math.min(a[1],b[1])), n:q(Math.max(a[1],b[1]))};
+    document.getElementById('selPreset').value='';
+    setAoiInputs(); draw();
+  });
+
+  document.getElementById('btnCsv').onclick = ()=>{
+    const R = aoiSeries();
+    let cum=0;
+    const lines = [`# ERA5 ${VARDEF[S.v].name} — AOI ${S.aoi.w}/${S.aoi.s}/${S.aoi.e}/${S.aoi.n} (W/S/E/N)`,
+      `# temporal=${RESDEF.find(r=>r.k===S.res).name} ${S.agg}; spatial=${(0.25*S.f).toFixed(2)}° ${S.method}`,
+      `# source: ARCO-ERA5 raw single-level via VirtualiZarr/Icechunk`,
+      `period,value_${unitLabel().replace('/','_per_')}${S.v==='tp'?',cumulative_mm':''}`];
+    R.values.forEach((v,i)=>{ cum+=(v===v?v:0);
+      lines.push(`"${R.G.groups[i].label}",${v===v?v.toFixed(4):''}${S.v==='tp'?','+cum.toFixed(4):''}`); });
+    dl(new Blob([lines.join('\n')],{type:'text/csv'}),
+       `era5_${S.v}_${S.res}_${S.agg}_${(0.25*S.f).toFixed(2)}deg.csv`);
+  };
+  document.getElementById('btnPng').onclick = ()=>{
+    const out = document.createElement('canvas');
+    out.width = VIEW.dispW; out.height = VIEW.dispH;
+    const o = out.getContext('2d'); o.imageSmoothingEnabled=false;
+    o.drawImage(map,0,0,VIEW.dispW,VIEW.dispH); o.drawImage(ovl,0,0);
+    out.toBlob(b=>dl(b, `era5_${S.v}_${S.res}_${(0.25*S.f).toFixed(2)}deg.png`));
+  };
+  function dl(blob, name){
+    const u = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href=u; a.download=name; a.click(); URL.revokeObjectURL(u);
+  }
+  document.getElementById('aboutbox').innerHTML = D.meta.about;
+  let rsz;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(rsz);
+    rsz = setTimeout(()=>{
+      if(document.querySelector('.tab.on').id==='tSeries') drawSeries(); else draw();
+    }, 150);
+  });
+  draw();
+}
+
+decodeAll().then(()=>{
+  document.getElementById('loading').remove();
+  init();
+}).catch(err=>{
+  document.getElementById('loading').innerHTML =
+    `<div style="max-width:560px;text-align:center;color:#ffc9a3">${err.message}</div>`;
+});
+</script>
+</body>
+</html>
