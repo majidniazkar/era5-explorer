@@ -7,35 +7,16 @@ Interactive temperature and precipitation over Italy at selectable resolution in
 
 ---
 
-## Deploy to GitHub Pages
+## Running it
 
-```bash
-git init
-git add -A
-git commit -m "ERA5 explorer"
-git branch -M main
-git remote add origin https://github.com/majidniazkar/era5-explorer.git
-git push -u origin main
-```
+Live at https://majidniazkar.github.io/era5-explorer/ — pushing to `main` redeploys
+via `.github/workflows/pages.yml`.
 
-Then **Settings → Pages → Build and deployment → Source: GitHub Actions**. The included
-workflow (`.github/workflows/pages.yml`) publishes the repository root on every push to `main`;
-the first run takes a minute or two.
+Locally: `python -m http.server 8000`, then http://localhost:8000. Opening
+`index.html` from the filesystem does not work — `file://` blocks the `fetch`
+calls that load `data/`.
 
-Two details that matter:
-
-- `.nojekyll` is required — without it Jekyll ignores paths it considers special and can drop
-  files from `data/`.
-- Everything is static. There is no build step, no Node, no Python on the server.
-
-To serve it locally first:
-
-```bash
-python -m http.server 8000     # then open http://localhost:8000
-```
-
-Opening `index.html` straight off the filesystem will **not** work: `file://` blocks the `fetch`
-calls that load `data/`. Use the local server, or the single-file build (below).
+`.nojekyll` must stay in the repo, or Jekyll drops files from `data/`.
 
 ---
 
