@@ -516,7 +516,7 @@ function ll2px(lon, lat){
 }
 function drawOverlay(){
   octx.clearRect(0,0,ovl.width,ovl.height);
-  octx.lineWidth = 1; octx.strokeStyle = 'rgba(255,255,255,.62)';
+  octx.lineWidth = 1; octx.strokeStyle = 'rgba(0,0,0,.8)';
   octx.beginPath();
   for(const seg of D.coast){
     for(let i=0;i<seg.length;i+=2){
